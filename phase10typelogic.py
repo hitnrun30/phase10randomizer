@@ -1,35 +1,127 @@
 import math
 import random
+from math import comb
 #from random import randint as rand
 color_rand = 8
 wild_rand = 20
 
-def create_phase_logic(phase, total_cards):
+class PhasePart:
+    def __init__(self):
+        self.cards = 0
+        self.type = ""
+        self.str = ""
+        self.probability = 0.0
+    
+def Check_Type(array, value):
+    """
+    Checks if a value is in any of the type values in an array of PhasePart objects.
+
+    Args:
+        array: The array of PhasePart objects.
+        value: The value to check.
+
+    Returns:
+        True if the value is in any of the type values in the array, False otherwise.
+    """
+
+    for phase_part in array:
+        if phase_part.type == value:
+            return True
+
+    return False
+
+def Total_Cards(array):
+    """
+    Adds up the value of cards in an array of PhasePart objects.
+
+    Args:
+        array: The array of PhasePart objects.
+
+    Returns:
+        The sum of the value of cards in the array.
+    """
+
+    total_value = 0
+    for phase_part in array:
+        total_value += phase_part.cards
+
+    return total_value
+
+def Total_Prob(array) -> float:
+    """
+    multiply the value of probability in an array of PhasePart objects.
+
+    Args:
+        array: The array of PhasePart objects.
+
+    Returns:
+        The quotient of the value of probability in the array.
+    """
+    
+    total_value = 0.0
+    for phase_part in array:
+        total_value += phase_part.probability
+
+    cards = Total_Cards(array)
+    
+    return round((total_value * comb((108-cards),(10-cards)))/comb(108,10),15)
+
+def Sort_Total_Prob(array_of_arrays):
+    """
+    Sorts an array of arrays of PhasePart objects by the multiply_card_values.
+
+    Args:
+        array_of_arrays: The array of arrays of PhasePart objects.
+
+    Returns:
+        The sorted array of arrays of PhasePart objects.
+    """
+    
+    return sorted(array_of_arrays, key=Total_Prob, reverse=True)
+
+    
+def create_phase_logic(phase_tot):
+    
+    part = PhasePart()
+    
     choice = random.choice(["run", "set", "color", "e-o", "hi-lo", "run-set"])
+    
+    #each phase can not have the same type more than once
+    if len(phase_tot) > 0:
+        while Check_Type(phase_tot, choice):
+            choice = random.choice(["run", "set", "color", "e-o", "hi-lo", "run-set"])
+    
+    part.type = choice
+    cards = Total_Cards(phase_tot)
     match choice:
         case "run":
-            phase, total_cards = run_type(phase, total_cards)
+            part = run_type(part,cards)
             
         case "set":
-            phase, total_cards = set_type(phase, total_cards)
+            part = set_type(part,cards)
             
         case "color":
-            phase, total_cards = color_type(phase, total_cards) 
+            part = color_type(part,cards) 
             
         case "e-o":
-            phase, total_cards = e_o_type(phase, total_cards) 
+            part = e_o_type(part,cards) 
         
         case "hi-lo":
-            phase, total_cards = high_low_type(phase, total_cards)
+            part = high_low_type(part,cards)
         
         case "run-set":
-            phase, total_cards = run_set_type(phase, total_cards)
-            
-    return phase, total_cards
-            
-def run_type(phase, cards):
+            part = run_set_type(part,cards)
     
-    if cards < 5:
+    if part.str != "":
+        phase_tot.append(part)        
+        
+    return phase_tot
+            
+def run_type(part, cards_tot):
+    w = 1
+    clr = 1
+    
+    if cards_tot < 5:
         x_value = random.randint(1, 2)
     else:
         x_value = 1
@@ -37,48 +129,62 @@ def run_type(phase, cards):
     color = ""    
     if random.randint(1, color_rand) == 1:
         color = "Color "
+        clr = comb(4,1)
     
     wild = ""    
     if random.randint(1, wild_rand) == 1:
         wild = " with Wild"
+        w = 2
         
     if x_value == 1:
-        y_value = random.randint(3, 10 - cards)        
-        phase = f"{color}Run of {y_value}{wild}"
+        y_value = random.randint(3, 10 - cards_tot)        
+        part.str = f"{color}Run of {y_value}{wild}"
     else:
-        y_value = random.randint(3, min(5, math.floor((10 - cards)/x_value)))
-        phase = f"{x_value} {color}Runs of {y_value}"
+        y_value = random.randint(3, min(5, math.floor((10 - cards_tot)/x_value)))
+        part.str = f"{x_value} {color}Runs of {y_value}{wild}"
         
-    cards = x_value * y_value
-    return phase, cards
+    part.cards = x_value * y_value
+    part.probability = (comb((12 - y_value + 1),x_value)) * clr * (pow(comb(8,1),(y_value-w)))
     
-def set_type(phase, cards):
+    return part
+    
+def set_type(part, cards_tot):
     plural = ""
     
-    x_value = random.randint(1, min(5, math.floor((10 - cards)/3)))
+    x_value = random.randint(1, min(5, math.floor((10 - cards_tot)/3)))
         
-    y_value = random.randint(3, min(5, math.floor((10 - cards)/x_value)))
+    y_value = random.randint(3, min(5, math.floor((10 - cards_tot)/x_value)))
     
     if x_value != 1:
         plural = "s"
         
-    phase = f"{x_value} Set{plural} of {y_value}"
-    cards = x_value * y_value
-    return phase, cards
+    part.phase = f"{x_value} Set{plural} of {y_value}"
+    part.cards = x_value * y_value
+    part.probability = (comb(12, x_value)) * (pow(comb(8, y_value), x_value))
     
-def color_type(phase, cards):
-    x_value = random.randint(3, 10 - cards)
+    return part
+    
+def color_type(part, cards_tot):
+    w = 0
+    wld = 1
+    
+    x_value = random.randint(3, 10 - cards_tot)
     
     wild = ""    
     if random.randint(1, wild_rand) == 1:
         wild = " with Wild"
+        wld = comb(8,1)
+        w = 1
         
-    phase = f"{x_value} of One Color{wild}"
-    cards = x_value
-    return phase, cards
+    part.str = f"{x_value} of One Color{wild}"
+    part.cards = x_value
+    part.probability = (comb(4,1)) * wld * (comb(24, (x_value-w)))
     
-def e_o_type(phase, cards):
+    return part
+    
+def e_o_type(part, cards_tot):
     rand = random.randint(1, 12)
+    clr = 1
     
     if (rand > 10):
         e_o = "Even or Odd"
@@ -88,44 +194,55 @@ def e_o_type(phase, cards):
         e_o = "Odd"
         
     x_value = 1
-    y_value = random.randint(3, 10 - cards)
+    y_value = random.randint(3, 10 - cards_tot)
     
     color = ""
     if random.randint(1, color_rand) == 1:
         color = "Color "
-            
-    phase = f"{x_value} {color}{e_o} of {y_value}"
-    cards = x_value * y_value
-    return phase, cards
+        clr = comb(4,1)        
+        
+    part.str = f"{x_value} {color}{e_o} of {y_value}"
+    part.cards = x_value * y_value
+    part.probability = (comb(2,1)) * clr * (comb(48, y_value))
     
-def high_low_type(phase, cards):
-    x_value = random.randint(3, 10 - cards)
+    return part
+    
+def high_low_type(part, cards_tot):
+    x_value = random.randint(3, 10 - cards_tot)
     hi_lo_value = random.choice(["Over", "Under"])
-    y_value = random.randint(3, 9)
-    #if hi_lo_value == "Over":
+    y_value = random.randint(4, 9)
+    u_o = 0
+    
+    if hi_lo_value == "Over":
+        u_o = -y_value + 12    
     #    y_value = random.randint(8, 9)
-    #else:
+    else:
+        u_o = y_value - 1
     #    y_value = random.randint(4, 5)
     
     color = ""
     if random.randint(1, color_rand) == 1:
         color = "of One Color "
         
-    phase = f"{x_value} {hi_lo_value} {y_value}"
-    cards = x_value
-    return phase, cards
+    part.str = f"{x_value} {hi_lo_value} {y_value}"
+    part.cards = x_value
+    part.probability = (comb((8 * (u_o)), x_value))
     
-def run_set_type(phase, cards):
-    if (math.floor((10 - cards)/2)) >= 3:
-        x_value = random.randint(3, math.floor((10 - cards)/2))
+    return part
+    
+def run_set_type(part, cards_tot):
+    if (math.floor((10 - cards_tot)/2)) >= 3:
+        x_value = random.randint(3, math.floor((10 - cards_tot)/2))
         hi_lo_value = random
-        
-        
             
-        phase = f"Run of {x_value} Pairs"
-        cards = x_value * 2
-    else:
-        phase = ""
-        cards = 0
+        part.str = f"Run of {x_value} Pairs"
+        part.cards = x_value * 2
+        part.probability = (comb((12 - x_value + 1), 2)) * (pow(comb(8,x_value), (x_value - 1)))
         
-    return phase, cards
+    else:
+        part.str = ""
+        part.cards = 0
+        part.probability = 0
+    
+    
+    return part
