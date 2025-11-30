@@ -1,9 +1,13 @@
 import math
 import random
 from math import comb
-#from random import randint as rand
-color_rand = 8
-wild_rand = 20
+import phase10probability
+import phase10config
+
+color_rand = phase10config.CONFIG["COLOR_RAND"]
+wild_rand = phase10config.CONFIG["WILD_RAND"]
+TYPE_MAX_PER_PHASE = phase10config.CONFIG["TYPE_MAX_PER_PHASE"]
+USE_MONTE_CARLO = phase10config.CONFIG["USE_MONTE_CARLO"]
 
 class PhasePart:
     def __init__(self):
@@ -11,7 +15,27 @@ class PhasePart:
         self.type = ""
         self.str = ""
         self.probability = 0.0
-    
+
+def Count_Type(array, value):
+    cnt = 0
+    for phase_part in array:
+        if phase_part.type == value:
+            cnt += 1
+    return cnt
+
+def Is_Type_Allowed(array, value):
+    return Count_Type(array, value) < TYPE_MAX_PER_PHASE
+
+def Exists_Same_Str_In_Phase(array, candidate_str):
+    cand = (candidate_str or "").strip().lower()
+    if not cand:
+        return False
+    for phase_part in array:
+        s = (phase_part.str or "").strip().lower()
+        if s == cand:
+            return True
+    return False
+
 def Check_Type(array, value):
     """
     Checks if a value is in any of the type values in an array of PhasePart objects.
@@ -67,54 +91,46 @@ def Total_Prob(array) -> float:
     return round((total_value * comb((108-cards),(10-cards)))/comb(108,10),15)
 
 def Sort_Total_Prob(array_of_arrays):
-    """
-    Sorts an array of arrays of PhasePart objects by the multiply_card_values.
-
-    Args:
-        array_of_arrays: The array of arrays of PhasePart objects.
-
-    Returns:
-        The sorted array of arrays of PhasePart objects.
-    """
-    
+    if USE_MONTE_CARLO:
+        return phase10probability.Sort_Total_Prob(array_of_arrays)
     return sorted(array_of_arrays, key=Total_Prob, reverse=True)
 
-    
 def create_phase_logic(phase_tot):
     
     part = PhasePart()
     
-    choice = random.choice(["run", "set", "color", "e-o", "hi-lo", "run-set"])
-    
-    #each phase can not have the same type more than once
+    types = ["run", "set", "color", "e-o", "hi-lo", "run-set"]
+    choice = random.choice(types)
+
+    # allow using a type multiple times but cap at TYPE_MAX_PER_PHASE
     if len(phase_tot) > 0:
-        while Check_Type(phase_tot, choice):
-            choice = random.choice(["run", "set", "color", "e-o", "hi-lo", "run-set"])
-    
+        tries = 0
+        while not Is_Type_Allowed(phase_tot, choice) and tries < 20:
+            choice = random.choice(types)
+            tries += 1
+        if not Is_Type_Allowed(phase_tot, choice):
+            return phase_tot  # nothing allowed; bail quietly
+
     part.type = choice
     cards = Total_Cards(phase_tot)
     match choice:
         case "run":
-            part = run_type(part,cards)
-            
+            part = run_type(part, cards)
         case "set":
-            part = set_type(part,cards)
-            
+            part = set_type(part, cards)
         case "color":
-            part = color_type(part,cards) 
-            
+            part = color_type(part, cards)
         case "e-o":
-            part = e_o_type(part,cards) 
-        
+            part = e_o_type(part, cards)
         case "hi-lo":
-            part = high_low_type(part,cards)
-        
+            part = high_low_type(part, cards)
         case "run-set":
-            part = run_set_type(part,cards)
-    
-    if part.str != "":
-        phase_tot.append(part)        
-        
+            part = run_set_type(part, cards)
+
+    # within-phase uniqueness: don't add the exact same string twice to the same phase
+    if part.str != "" and not Exists_Same_Str_In_Phase(phase_tot, part.str):
+        phase_tot.append(part)
+
     return phase_tot
             
 def run_type(part, cards_tot):
@@ -158,7 +174,7 @@ def set_type(part, cards_tot):
     if x_value != 1:
         plural = "s"
         
-    part.phase = f"{x_value} Set{plural} of {y_value}"
+    part.str = f"{x_value} Set{plural} of {y_value}"
     part.cards = x_value * y_value
     part.probability = (comb(12, x_value)) * (pow(comb(8, y_value), x_value))
     
@@ -214,11 +230,11 @@ def high_low_type(part, cards_tot):
     u_o = 0
     
     if hi_lo_value == "Over":
-        u_o = -y_value + 12    
-    #    y_value = random.randint(8, 9)
+        y_value = random.randint(7, 9)
+        u_o = -y_value + 12
     else:
-        u_o = y_value - 1
-    #    y_value = random.randint(4, 5)
+        y_value = random.randint(4, 6)
+        u_o = y_value - 1    
     
     color = ""
     if random.randint(1, color_rand) == 1:

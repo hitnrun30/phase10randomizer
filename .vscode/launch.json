@@ -1,0 +1,13 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Phase10 Python (run generator)",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/phase10logic.py",
+      "console": "integratedTerminal",
+      "cwd": "${workspaceFolder}"
+    }
+  ]
+}

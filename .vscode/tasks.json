@@ -1,0 +1,36 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "PHP server",
+      "type": "shell",
+      "command": "php",
+      "args": [
+        "-S",
+        "localhost:0",
+        "-t",
+        "${workspaceFolder}"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Publish Phase10 to Production",
+      "type": "shell",
+      "command": "python",
+      "args": [
+        "${workspaceFolder}/publish.py"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      },
+      "problemMatcher": []
+    }
+  ]
+}
