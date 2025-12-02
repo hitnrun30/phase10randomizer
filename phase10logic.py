@@ -3,6 +3,7 @@ from phase10typelogic import create_phase_logic
 import random
 from collections import Counter
 import phase10config
+import phase10prob_worker
 
 SHOW_PHASE_PROBABILITY = phase10config.CONFIG["SHOW_PHASE_PROBABILITY"]
 MIN_CARDS_PER_PHASE = phase10config.CONFIG["MIN_CARDS_PER_PHASE"]
@@ -96,6 +97,10 @@ def generate_phases():
                 if s_norm:
                     seen_strings.add(s_norm)
             break
+
+    # Add to DB if selection not there
+    for selection in chosen:
+        phase10prob_worker.insert_phase_if_missing(selection)
 
     # Sort by probability (MC) and attach .probability per phase in Sort_Total_Prob
     chosen = phase10typelogic.Sort_Total_Prob(chosen)

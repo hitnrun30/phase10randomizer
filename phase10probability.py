@@ -2,6 +2,11 @@ import re
 import random as _rnd
 from collections import Counter, defaultdict
 import phase10config
+import phase10typelogic
+# import your DB helper module here; name depends on where you put CRUD
+
+USE_MONTE_CARLO    = phase10config.CONFIG["USE_MONTE_CARLO"]
+MC_SERVICE_TRIALS  = phase10config.CONFIG["MC_SERVICE_TRIALS"]
 
 MC_TRIALS_DEFAULT = phase10config.CONFIG["MC_TRIALS_DEFAULT"]
 PHASE_PROB_CACHE = phase10config.CONFIG.get("PHASE_PROB_CACHE", {})
@@ -370,14 +375,50 @@ def Total_Prob_MC(array):
     PHASE_PROB_CACHE[key] = val
     return val
 
+def Total_Prob_with_DB(selection):
+    import phase10prob_worker as db
+    
+    phase_key_tuple = _phase_key(selection)
+    phase_key_str = repr(phase_key_tuple)
+
+    prob_db, trials_db = db.db_get_phase_record(phase_key_str)
+
+    # 1. Fully baked MC result in DB
+    if (
+        prob_db is not None
+        and trials_db is not None
+        and trials_db != 0
+        and trials_db >= MC_SERVICE_TRIALS
+    ):
+        return prob_db
+
+    # 2. MC path
+    if USE_MONTE_CARLO:
+        # Use any existing partial MC as a quick answer
+        if prob_db is not None and trials_db is not None and trials_db > 0:
+            return prob_db
+
+        # No MC yet -> quick MC now, store in DB
+        prob_mc = estimate_phase_prob_mc(selection, MC_TRIALS_DEFAULT)
+        db.db_upsert_phase(selection, prob_mc, MC_TRIALS_DEFAULT)
+        return prob_mc
+
+    # 3. Non-MC path
+    else:
+        # Make sure a placeholder exists so the worker can see this phase
+        if prob_db is None or trials_db is None:
+            db.db_insert_placeholder(selection)  # prob=0.0, trials=0
+
+        # Use analytic probability
+        prob_analytic = phase10typelogic.Total_Prob(selection)
+        return prob_analytic
+
 
 def Sort_Total_Prob(array_of_arrays):
-    # compute and attach MC probability to each phase (reuse .probability field)
     for phase in array_of_arrays:
-        mc = Total_Prob_MC(phase)
+        prob = Total_Prob_with_DB(phase)
         for part in phase:
-            part.probability = mc
-
-    # easiest first (highest success rate)
+            part.probability = prob
     return sorted(array_of_arrays, key=lambda arr: arr[0].probability, reverse=True)
+
 

@@ -187,7 +187,7 @@ function get_phase10_html()
                         id="max_per_phase"
                         name="max_per_phase"
                         type="number"
-                        min="2"
+                        min="1"
                         max="10"
                         class="px-3 py-1 rounded text-black"
                         value="<?php echo htmlspecialchars((string)$max_per_phase, ENT_QUOTES, 'UTF-8'); ?>"
